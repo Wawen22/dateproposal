@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: var(--font-nunito), system-ui, sans-serif;
+  --font-body: var(--font-nunito), system-ui, sans-serif;
+
+  --color-cream: #FFF8EE;
+  --color-card: #FFFFFF;
+  --color-pink: #FF91A4;
+  --color-pink-dark: #ff6b87;
+  --color-sun: #F5C842;
+  --color-lavender: #EDE9FE;
+  --color-ink: #3B1A08;
+  --color-muted: #9CA3AF;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--color-cream);
+  font-family: var(--font-body);
+}
+
+/* Confirm screen confetti (floats up) */
+@keyframes float-up {
+  0%   { transform: translateY(0);      opacity: 0; }
+  8%   { opacity: 0.9; }
+  88%  { opacity: 0.7; }
+  100% { transform: translateY(-112vh); opacity: 0; }
+}
+
+.float-heart {
+  animation: float-up var(--hdur, 4s) ease-out infinite;
+  animation-delay: var(--hdelay, 0s);
+}
