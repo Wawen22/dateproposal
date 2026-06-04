@@ -40,6 +40,52 @@ const STEP_OK: number[] = [12, 18, 12]  // advance to next step
 const YES_BUZZ: number[] = [18, 40, 28] // the "sì"
 const PARTY: number[] = [22, 45, 22, 45, 55] // confirm celebration
 
+// ─── Date helpers (dynamic week navigation) ──────────────────────────────────
+const DOW_IT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'] as const
+const MAX_WEEK_OFFSET = 2
+
+function getNextMonday(): Date {
+  const d = new Date()
+  d.setHours(12, 0, 0, 0)
+  const dow = d.getDay()
+  d.setDate(d.getDate() + (dow === 0 ? 1 : 8 - dow))
+  return d
+}
+
+function addWeeks(date: Date, n: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + n * 7)
+  return d
+}
+
+function capShortMonth(date: Date): string {
+  return date.toLocaleDateString('it-IT', { month: 'short' })
+    .replace(/\.$/, '')
+    .replace(/^\w/, c => c.toUpperCase())
+}
+
+function weekRangeLabel(monday: Date): string {
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  const sm = capShortMonth(monday)
+  const em = capShortMonth(sunday)
+  return sm === em
+    ? `${monday.getDate()} – ${sunday.getDate()} ${em}`
+    : `${monday.getDate()} ${sm} – ${sunday.getDate()} ${em}`
+}
+
+function buildWeekDays(monday: Date) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    const y = d.getFullYear()
+    const mo = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const key = `${y}-${mo}-${day}`
+    return { key, dow: DOW_IT[i], num: d.getDate(), mon: capShortMonth(d), special: key === '2026-06-13' }
+  })
+}
+
 // ─── Sunflower Background — SVG + Framer Motion ─────────────────────────────
 // Each sunflower is a proper SVG (same design as creailtuobot/SunflowerDecoration)
 // rotated via Framer Motion animate={{ rotate: 360 }} — always works, no CSS hacks
@@ -322,16 +368,18 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
         <div className="rounded-3xl shadow-2xl px-10 py-12 text-center" style={glass}>
 
           {/* Photo — replace src */}
-          <div
+          <motion.div
             className="w-32 h-32 mx-auto mb-6 rounded-2xl overflow-hidden shadow-xl"
             style={{ outline: '4px solid #F5C842', outlineOffset: 3 }}
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
           >
             <img
               src="https://media.giphy.com/media/vFKqnCdLPNOKc/giphy.gif"
               alt="foto"
               className="w-full h-full object-cover"
             />
-          </div>
+          </motion.div>
 
 
 
@@ -349,6 +397,8 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
           <div className="flex items-center justify-center gap-4 min-h-[60px]">
             <motion.button
               onClick={() => { vibrate(YES_BUZZ); onYes() }}
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
               className="rounded-full font-bold text-lg text-white shadow-lg"
@@ -392,13 +442,17 @@ function YesStep({ onNext }: { onNext: () => void }) {
       <div className="rounded-3xl shadow-2xl px-10 py-12 text-center" style={glass}>
 
         {/* GIF — replace src */}
-        <div className="w-28 h-28 mx-auto mb-7 rounded-2xl overflow-hidden shadow-lg">
+        <motion.div
+          className="w-28 h-28 mx-auto mb-7 rounded-2xl overflow-hidden shadow-lg"
+          animate={{ y: [0, -10, 0] }}
+          transition={{ duration: 2.8, repeat: Infinity, ease: 'easeInOut' }}
+        >
           <img
             src="https://media.giphy.com/media/xL7PDV9frcudO/giphy.gif"
             alt="reazione"
             className="w-full h-full object-cover"
           />
-        </div>
+        </motion.div>
 
         <h2
           className="text-[2rem] font-extrabold leading-tight mb-2"
@@ -412,6 +466,8 @@ function YesStep({ onNext }: { onNext: () => void }) {
 
         <motion.button
           onClick={() => { vibrate(STEP_OK); onNext() }}
+          animate={{ y: [0, -7, 0] }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.93 }}
           className="rounded-full font-semibold text-base text-white shadow-md"
@@ -436,19 +492,13 @@ const TIME_SLOTS = [
 
 function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
   const [selDates, setSelDates] = useState<string[]>([])
+
+  const monday = useMemo(() => getNextMonday(), [])
+  const days = useMemo(() => buildWeekDays(monday), [monday])
+  const weekLabel = useMemo(() => weekRangeLabel(monday), [monday])
+
   const ready = selDates.length > 0
   const toggle = (key: string) => { vibrate(TAP); setSelDates(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]) }
-
-  // Fixed: next week Mon 8 → Sun 14 June 2026
-  const days = [
-    { key: '2026-06-08', dow: 'Lun', num: 8,  mon: 'Giu', special: false },
-    { key: '2026-06-09', dow: 'Mar', num: 9,  mon: 'Giu', special: false },
-    { key: '2026-06-10', dow: 'Mer', num: 10, mon: 'Giu', special: false },
-    { key: '2026-06-11', dow: 'Gio', num: 11, mon: 'Giu', special: false },
-    { key: '2026-06-12', dow: 'Ven', num: 12, mon: 'Giu', special: false },
-    { key: '2026-06-13', dow: 'Sab', num: 13, mon: 'Giu', special: true  },
-    { key: '2026-06-14', dow: 'Dom', num: 14, mon: 'Giu', special: false },
-  ]
 
   return (
     <motion.div
@@ -471,7 +521,7 @@ function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
         </div>
 
         <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9CA3AF' }}>
-          scegli i giorni 👇
+          {weekLabel}
         </p>
         <div className="grid grid-cols-7 gap-1.5 mb-3">
           {days.map((d) => (
@@ -528,6 +578,8 @@ function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
         <motion.button
           onClick={() => { if (ready) { vibrate(STEP_OK); onNext(selDates) } }}
           disabled={!ready}
+          animate={ready ? { y: [0, -6, 0] } : { y: 0 }}
+          transition={ready ? { duration: 2.8, repeat: Infinity, ease: 'easeInOut' } : {}}
           whileHover={ready ? { scale: 1.03 } : {}}
           whileTap={ready   ? { scale: 0.97 } : {}}
           className="w-full py-4 rounded-full font-semibold text-base transition-all duration-200"
@@ -617,6 +669,8 @@ function VibesStep({ onNext }: { onNext: (vibes: string[]) => void }) {
         <motion.button
           onClick={() => { if (sel.length > 0) { vibrate(STEP_OK); onNext(sel) } }}
           disabled={sel.length === 0}
+          animate={sel.length > 0 ? { y: [0, -6, 0] } : { y: 0 }}
+          transition={sel.length > 0 ? { duration: 3.0, repeat: Infinity, ease: 'easeInOut' } : {}}
           whileHover={sel.length > 0 ? { scale: 1.03 } : {}}
           whileTap={sel.length > 0   ? { scale: 0.97 } : {}}
           className="w-full py-4 rounded-full font-semibold text-base transition-all duration-200"
@@ -671,16 +725,18 @@ function ConfirmStep({ choices }: { choices: Choices }) {
         <div className="rounded-3xl shadow-2xl px-8 py-10 text-center" style={glass}>
 
           {/* Closing GIF — replace src */}
-          <div
+          <motion.div
             className="w-24 h-24 mx-auto mb-5 rounded-full overflow-hidden shadow-lg"
             style={{ outline: '4px solid #F5C842', outlineOffset: 3 }}
+            animate={{ y: [0, -10, 0] }}
+            transition={{ duration: 3.6, repeat: Infinity, ease: 'easeInOut' }}
           >
             <img
               src="https://media.giphy.com/media/DfLwM9kttDFEQ/giphy.gif"
               alt="placeholder"
               className="w-full h-full object-cover"
             />
-          </div>
+          </motion.div>
 
           <h2
             className="text-[2rem] font-extrabold leading-tight mb-1"

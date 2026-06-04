@@ -10,8 +10,24 @@ const nunito = Nunito({
 })
 
 export const metadata: Metadata = {
-  title: 'señorita 🌻',
-  description: 'una proposta...',
+  metadataBase: new URL(
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000'
+  ),
+  title: 'Visita col dottore',
+  description: 'una proposta, señorita 🌻',
+  openGraph: {
+    title: 'Visita col dottore',
+    description: 'una proposta, señorita 🌻',
+    locale: 'it_IT',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Visita col dottore',
+    description: 'una proposta, señorita 🌻',
+  },
 }
 
 export default function RootLayout({
