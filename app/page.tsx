@@ -185,7 +185,7 @@ function SunflowerBg() {
 
 // ─── Confetti (confirm screen) ────────────────────────────────────────────────
 // Continuous stream that rises, sways and spins for the whole confirm screen.
-const CONFETTI = ['💛','🌻','💕','🌻','💛','💕','🌻','✨','💛','🧡','🌻','💕','🌻','💛','✨','🌻','💕','🧡','🌻','💛']
+const CONFETTI = ['💛','🌻','💕','🌻','💛','💕','🌻','✨','🌻','🧡','🌻','💕','🌻','💛','✨','🌻','💕','🧡','🌻']
 
 function FloatingConfetti() {
   return (
@@ -715,11 +715,14 @@ function ConfirmStep({ choices }: { choices: Choices }) {
     new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   )
 
+  const [sent, setSent] = useState(false)
   const sentRef = useRef(false)
-  useEffect(() => {
-    vibrate(PARTY) // celebration buzz on arrival
-    if (sentRef.current) return // guard against StrictMode double-fire
+
+  const confirm = useCallback(() => {
+    if (sentRef.current) return // guard against double-tap
     sentRef.current = true
+    setSent(true)
+    vibrate(PARTY) // celebration buzz on confirm
     fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -728,12 +731,12 @@ function ConfirmStep({ choices }: { choices: Choices }) {
         vibes: choices.vibes.map(k => VIBE_LABEL[k] ?? k),
       }),
     }).catch(() => { /* silent: Ana never sees a failure */ })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dateLabels, choices.vibes])
 
   return (
     <>
-      <FloatingConfetti />
-      <ConfettiBurst />
+      {sent && <FloatingConfetti />}
+      {sent && <ConfettiBurst />}
 
       <motion.div
         initial={{ opacity: 0, scale: 0.80 }}
@@ -762,10 +765,10 @@ function ConfirmStep({ choices }: { choices: Choices }) {
             className="text-[2rem] font-extrabold leading-tight mb-1"
             style={{ fontFamily: 'var(--font-nunito), system-ui, sans-serif', color: '#3B1A08' }}
           >
-            è deciso señorita 🌻
+            {sent ? 'è deciso señorita 🌻' : 'ecco il riepilogo 🌻'}
           </h2>
           <p className="text-sm italic mb-6" style={{ color: '#9CA3AF' }}>
-            ci vediamo presto. 😏
+            {sent ? 'ci vediamo presto 😏' : 'tanto lo so che confermi 🙈'}
           </p>
 
           <div
@@ -794,9 +797,29 @@ function ConfirmStep({ choices }: { choices: Choices }) {
             </div>
           </div>
 
-          <p className="text-[13px] italic leading-relaxed" style={{ color: '#C4C9D1' }}>
-            non dire che non ci provo 🌻
-          </p>
+          {!sent ? (
+            <motion.button
+              onClick={confirm}
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              className="w-full py-4 rounded-full font-bold text-base text-white shadow-lg"
+              style={{ background: '#FF91A4' }}
+            >
+              conferma 🌻
+            </motion.button>
+          ) : (
+            <motion.p
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="text-[13px] italic leading-relaxed"
+              style={{ color: '#C4C9D1' }}
+            >
+              non dire che non ci provo 🌻
+            </motion.p>
+          )}
 
         </div>
       </motion.div>
@@ -889,6 +912,7 @@ export default function DateProposal() {
   useEffect(() => {
     audioRef.current = new Audio('/audio/la-bamba.mp3')
     audioRef.current.volume = 0.75
+    audioRef.current.loop = true
     return () => { audioRef.current?.pause() }
   }, [])
 
