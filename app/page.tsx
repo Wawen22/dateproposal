@@ -813,11 +813,64 @@ function ProgressDots({ step }: { step: Step }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// MUSIC INDICATOR
+// ─────────────────────────────────────────────────────────────────────────────
+const EQ_BARS = [
+  { dur: 0.55, delay: 0    },
+  { dur: 0.45, delay: 0.12 },
+  { dur: 0.65, delay: 0.25 },
+  { dur: 0.50, delay: 0.08 },
+]
+
+function MusicIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24, scale: 0.85 }}
+      animate={{ opacity: 1, y: 0,  scale: 1    }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26, delay: 0.3 }}
+      className="fixed bottom-5 right-4 flex items-center gap-2 px-3 py-2 rounded-full select-none"
+      style={{
+        background: 'rgba(255,248,238,0.94)',
+        backdropFilter: 'blur(14px)',
+        WebkitBackdropFilter: 'blur(14px)',
+        border: '1.5px solid rgba(245,200,66,0.55)',
+        boxShadow: '0 4px 18px rgba(245,200,66,0.22)',
+        zIndex: 50,
+      }}
+    >
+      {/* Equalizer bars */}
+      <div className="flex items-end gap-[3px]" style={{ height: 16 }}>
+        {EQ_BARS.map((b, i) => (
+          <motion.div
+            key={i}
+            style={{ width: 3, height: 16, background: '#F5C842', borderRadius: 2, originY: 1 }}
+            animate={{ scaleY: [0.25, 1, 0.25] }}
+            transition={{ duration: b.dur, repeat: Infinity, delay: b.delay, ease: 'easeInOut' }}
+          />
+        ))}
+      </div>
+      <div className="flex flex-col leading-none">
+        <span className="text-[11px] font-extrabold" style={{ color: '#3B1A08' }}>La Bamba 🎵</span>
+        <span className="text-[9px] font-medium" style={{ color: '#9CA3AF' }}>alza il volume 😏</span>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // ROOT PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function DateProposal() {
   const [step, setStep]       = useState<Step>('proposal')
   const [choices, setChoices] = useState<Partial<Choices>>({})
+  const [audioStarted, setAudioStarted] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    audioRef.current = new Audio('/audio/la-bamba.mp3')
+    audioRef.current.volume = 0.75
+    return () => { audioRef.current?.pause() }
+  }, [])
 
   return (
     <main
@@ -826,6 +879,7 @@ export default function DateProposal() {
     >
       <SunflowerBg />
       <ProgressDots step={step} />
+      {audioStarted && <MusicIndicator />}
 
       <div
         className="relative w-full py-16 flex items-center justify-center"
@@ -834,7 +888,14 @@ export default function DateProposal() {
         <AnimatePresence mode="wait">
 
           {step === 'proposal' && (
-            <ProposalStep key="proposal" onYes={() => setStep('yes')} />
+            <ProposalStep
+              key="proposal"
+              onYes={() => {
+                audioRef.current?.play().catch(() => {})
+                setAudioStarted(true)
+                setStep('yes')
+              }}
+            />
           )}
 
           {step === 'yes' && (
