@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -27,6 +27,18 @@ const btnDisabled: React.CSSProperties = {
   color: '#9CA3AF',
   cursor: 'not-allowed',
 }
+
+// ─── Haptics ────────────────────────────────────────────────────────────────
+// Graceful no-op where the Vibration API is unsupported (e.g. iOS Safari).
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try { navigator.vibrate(pattern) } catch { /* ignore */ }
+  }
+}
+const TAP = 10                 // light tap on selection
+const STEP_OK: number[] = [12, 18, 12]  // advance to next step
+const YES_BUZZ: number[] = [18, 40, 28] // the "sì"
+const PARTY: number[] = [22, 45, 22, 45, 55] // confirm celebration
 
 // ─── Sunflower Background — SVG + Framer Motion ─────────────────────────────
 // Each sunflower is a proper SVG (same design as creailtuobot/SunflowerDecoration)
@@ -126,7 +138,8 @@ function SunflowerBg() {
 }
 
 // ─── Confetti (confirm screen) ────────────────────────────────────────────────
-const HEARTS = ['💛', '🌻', '💕', '🌻', '💛', '💕', '🌻', '💛']
+// Continuous stream that rises, sways and spins for the whole confirm screen.
+const CONFETTI = ['💛','🌻','💕','🌻','💛','💕','🌻','✨','💛','🧡','🌻','💕','🌻','💛','✨','🌻','💕','🧡','🌻','💛']
 
 function FloatingConfetti() {
   return (
@@ -135,20 +148,64 @@ function FloatingConfetti() {
       style={{ zIndex: 0 }}
       aria-hidden="true"
     >
-      {HEARTS.map((h, i) => (
+      {CONFETTI.map((h, i) => (
         <span
           key={i}
           className="absolute float-heart select-none"
           style={{
-            left:   (8 + i * 11) + '%',
+            left:   (3 + i * 4.7) + '%',
             bottom: '-8%',
-            fontSize: 18 + (i % 3) * 6,
-            ['--hdur' as string]:   (3.4 + (i % 3) * 0.9) + 's',
-            ['--hdelay' as string]: (i * 0.52) + 's',
+            fontSize: 16 + (i % 4) * 6,
+            ['--hdur'   as string]: (3.2 + (i % 4) * 0.8) + 's',
+            ['--hdelay' as string]: ((i % 7) * 0.42) + 's',
+            ['--hsway'  as string]: ((i % 2 ? 1 : -1) * (16 + (i % 3) * 14)) + 'px',
+            ['--hrot'   as string]: ((i % 2 ? 1 : -1) * (140 + (i % 4) * 90)) + 'deg',
           }}
         >
           {h}
         </span>
+      ))}
+    </div>
+  )
+}
+
+// One-shot radial burst from the center — fires once when the confirm card mounts.
+const BURST_EMOJI = ['🌻','💛','💕','✨','🌻','🧡','🌻','💛','🌻','💕','✨','🌻','🧡','🌻','💛','🌻','💕','🌻']
+
+function ConfettiBurst() {
+  const pieces = useMemo(() =>
+    BURST_EMOJI.map((emoji, i) => {
+      const angle = (360 / BURST_EMOJI.length) * i + (Math.random() * 26 - 13)
+      const dist  = 130 + Math.random() * 170
+      const rad   = (angle * Math.PI) / 180
+      return {
+        id: i,
+        emoji,
+        x:   Math.cos(rad) * dist,
+        y:   Math.sin(rad) * dist,
+        rot: Math.random() * 560 - 280,
+        size: 20 + Math.random() * 18,
+        dur:  0.85 + Math.random() * 0.55,
+      }
+    }), [])
+
+  return (
+    <div
+      className="fixed inset-0 pointer-events-none flex items-center justify-center"
+      style={{ zIndex: 40 }}
+      aria-hidden="true"
+    >
+      {pieces.map((p) => (
+        <motion.span
+          key={p.id}
+          className="absolute select-none"
+          style={{ fontSize: p.size }}
+          initial={{ x: 0, y: 0, scale: 0.3, opacity: 0 }}
+          animate={{ x: p.x, y: p.y, scale: 1, opacity: [0, 1, 1, 0], rotate: p.rot }}
+          transition={{ duration: p.dur, ease: 'easeOut' }}
+        >
+          {p.emoji}
+        </motion.span>
       ))}
     </div>
   )
@@ -187,6 +244,7 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
 
     setFlyPos({ x: nx, y: ny })
     setAttempts(a => a + 1)
+    vibrate(8) // tiny buzz as it darts away
   }, [flying, flyPos])
 
   const msgs = [
@@ -290,7 +348,7 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
 
           <div className="flex items-center justify-center gap-4 min-h-[60px]">
             <motion.button
-              onClick={onYes}
+              onClick={() => { vibrate(YES_BUZZ); onYes() }}
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.92 }}
               className="rounded-full font-bold text-lg text-white shadow-lg"
@@ -353,7 +411,7 @@ function YesStep({ onNext }: { onNext: () => void }) {
         </p>
 
         <motion.button
-          onClick={onNext}
+          onClick={() => { vibrate(STEP_OK); onNext() }}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.93 }}
           className="rounded-full font-semibold text-base text-white shadow-md"
@@ -379,7 +437,7 @@ const TIME_SLOTS = [
 function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
   const [selDates, setSelDates] = useState<string[]>([])
   const ready = selDates.length > 0
-  const toggle = (key: string) => setSelDates(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+  const toggle = (key: string) => { vibrate(TAP); setSelDates(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]) }
 
   // Fixed: next week Mon 8 → Sun 14 June 2026
   const days = [
@@ -468,7 +526,7 @@ function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
         </AnimatePresence>
 
         <motion.button
-          onClick={() => ready && onNext(selDates)}
+          onClick={() => { if (ready) { vibrate(STEP_OK); onNext(selDates) } }}
           disabled={!ready}
           whileHover={ready ? { scale: 1.03 } : {}}
           whileTap={ready   ? { scale: 0.97 } : {}}
@@ -504,8 +562,10 @@ const VIBES = [
 function VibesStep({ onNext }: { onNext: (vibes: string[]) => void }) {
   const [sel, setSel] = useState<string[]>([])
 
-  const toggle = (key: string) =>
+  const toggle = (key: string) => {
+    vibrate(TAP)
     setSel(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+  }
 
   return (
     <motion.div
@@ -555,7 +615,7 @@ function VibesStep({ onNext }: { onNext: (vibes: string[]) => void }) {
         </div>
 
         <motion.button
-          onClick={() => sel.length > 0 && onNext(sel)}
+          onClick={() => { if (sel.length > 0) { vibrate(STEP_OK); onNext(sel) } }}
           disabled={sel.length === 0}
           whileHover={sel.length > 0 ? { scale: 1.03 } : {}}
           whileTap={sel.length > 0   ? { scale: 0.97 } : {}}
@@ -581,9 +641,12 @@ function ConfirmStep({ choices }: { choices: Choices }) {
     new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   )
 
+  useEffect(() => { vibrate(PARTY) }, []) // celebration buzz on arrival
+
   return (
     <>
       <FloatingConfetti />
+      <ConfettiBurst />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.80 }}
