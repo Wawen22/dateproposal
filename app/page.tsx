@@ -271,6 +271,9 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
     const vw = window.innerWidth
     const vh = window.innerHeight
     const bw = 145, bh = 58, margin = 20
+    // Reserve a no-fly zone at the top so the button never covers the
+    // message banner. Taller on mobile, where the banner wraps to 2-3 lines.
+    const topSafe = vw < 640 ? 170 : 120
 
     if (!flying && noRef.current) {
       const r = noRef.current.getBoundingClientRect()
@@ -281,10 +284,13 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
     const curX = flying ? flyPos.x : (noRef.current?.getBoundingClientRect().left ?? vw / 2)
     const curY = flying ? flyPos.y : (noRef.current?.getBoundingClientRect().top  ?? vh / 2)
 
+    // Vertical span available below the top no-fly zone.
+    const ySpan = Math.max(vh - bh - topSafe - margin, 0)
+
     let nx = 0, ny = 0, tries = 0
     do {
       nx = margin + Math.random() * (vw - bw - margin * 2)
-      ny = margin + Math.random() * (vh - bh - margin * 2)
+      ny = topSafe + Math.random() * ySpan
       tries++
     } while (tries < 20 && Math.abs(nx - curX) < 100 && Math.abs(ny - curY) < 70)
 
@@ -391,7 +397,7 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
             className="text-[2.6rem] leading-[1.15] font-extrabold mb-10"
             style={{ fontFamily: 'var(--font-nunito), system-ui, sans-serif', color: '#3B1A08', letterSpacing: '-0.01em' }}
           >
-            prossima settimana usciamo.
+            Ana, prossima settimana usciamo.
           </h1>
 
           <div className="flex items-center justify-center gap-4 min-h-[60px]">
