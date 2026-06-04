@@ -641,7 +641,20 @@ function ConfirmStep({ choices }: { choices: Choices }) {
     new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
   )
 
-  useEffect(() => { vibrate(PARTY) }, []) // celebration buzz on arrival
+  const sentRef = useRef(false)
+  useEffect(() => {
+    vibrate(PARTY) // celebration buzz on arrival
+    if (sentRef.current) return // guard against StrictMode double-fire
+    sentRef.current = true
+    fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        dates: dateLabels,
+        vibes: choices.vibes.map(k => VIBE_LABEL[k] ?? k),
+      }),
+    }).catch(() => { /* silent: Ana never sees a failure */ })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
