@@ -262,6 +262,7 @@ function ConfettiBurst() {
 // ─────────────────────────────────────────────────────────────────────────────
 function ProposalStep({ onYes }: { onYes: () => void }) {
   const noRef = useRef<HTMLButtonElement>(null)
+  const yesRef = useRef<HTMLButtonElement>(null)
   const [flying, setFlying]     = useState(false)
   const [initPos, setInitPos]   = useState({ x: 0, y: 0 })
   const [flyPos, setFlyPos]     = useState({ x: 0, y: 0 })
@@ -287,12 +288,24 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
     // Vertical span available below the top no-fly zone.
     const ySpan = Math.max(vh - bh - topSafe - margin, 0)
 
+    // No-fly zone around the "sì" button so the flying button never lands on
+    // top of it (otherwise tapping it would accidentally trigger "sì").
+    const pad = 28
+    const yr = yesRef.current?.getBoundingClientRect()
+    const overlapsYes = (x: number, y: number) =>
+      !!yr &&
+      x < yr.right + pad && x + bw > yr.left - pad &&
+      y < yr.bottom + pad && y + bh > yr.top - pad
+
     let nx = 0, ny = 0, tries = 0
     do {
       nx = margin + Math.random() * (vw - bw - margin * 2)
       ny = topSafe + Math.random() * ySpan
       tries++
-    } while (tries < 20 && Math.abs(nx - curX) < 100 && Math.abs(ny - curY) < 70)
+    } while (
+      tries < 30 &&
+      ((Math.abs(nx - curX) < 100 && Math.abs(ny - curY) < 70) || overlapsYes(nx, ny))
+    )
 
     setFlyPos({ x: nx, y: ny })
     setAttempts(a => a + 1)
@@ -402,6 +415,7 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
 
           <div className="flex items-center justify-center gap-4 min-h-[60px]">
             <motion.button
+              ref={yesRef}
               onClick={() => { vibrate(YES_BUZZ); onYes() }}
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
