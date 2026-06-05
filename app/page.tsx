@@ -962,6 +962,14 @@ export default function DateProposal() {
               onNext={(vibes) => {
                 setChoices(c => ({ ...c, vibes }))
                 setStep('confirm')
+                fetch('/api/notify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: 'reached_confirm',
+                    vibes: vibes.map(k => VIBE_LABEL[k] ?? k),
+                  }),
+                }).catch(() => {})
               }}
             />
           )}

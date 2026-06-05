@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 // and in the Vercel project env vars (production).
 
 interface NotifyBody {
+  type?: 'confirm' | 'reached_confirm'
   dates?: string[]
   vibes?: string[]
 }
@@ -32,13 +33,21 @@ export async function POST(req: Request) {
   const dates = (Array.isArray(body.dates) ? body.dates : []).map(escapeHtml)
   const vibes = (Array.isArray(body.vibes) ? body.vibes : []).map(escapeHtml)
 
-  const datesLine = dates.length ? dates.map(d => `📅 ${d}`).join('\n') : '📅 —'
-  const vibesLine = vibes.length ? vibes.join(', ') : '—'
-
-  const text =
-    `🌻 <b>Ana ha risposto!</b>\n\n` +
-    `<b>Quando:</b>\n${datesLine}\n\n` +
-    `<b>Le vibes:</b>\n🍽️ ${vibesLine}`
+  let text: string
+  if (body.type === 'reached_confirm') {
+    const vibesLine = vibes.length ? vibes.join(', ') : '—'
+    text =
+      `👀 <b>Ana sta per confermare!</b>\n\n` +
+      `Ha scelto le vibes e sta guardando il riepilogo.\n\n` +
+      `<b>Le vibes scelte:</b>\n🍽️ ${vibesLine}`
+  } else {
+    const datesLine = dates.length ? dates.map(d => `📅 ${d}`).join('\n') : '📅 —'
+    const vibesLine = vibes.length ? vibes.join(', ') : '—'
+    text =
+      `🌻 <b>Ana ha risposto!</b>\n\n` +
+      `<b>Quando:</b>\n${datesLine}\n\n` +
+      `<b>Le vibes:</b>\n🍽️ ${vibesLine}`
+  }
 
   try {
     const tgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
