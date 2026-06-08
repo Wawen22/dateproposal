@@ -42,13 +42,13 @@ const PARTY: number[] = [22, 45, 22, 45, 55] // confirm celebration
 
 // ─── Date helpers (dynamic week navigation) ──────────────────────────────────
 const DOW_IT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'] as const
-const MAX_WEEK_OFFSET = 2
+const WEEK_SECTION_OFFSETS = [0, 1] as const
 
-function getNextMonday(): Date {
+function getCurrentMonday(): Date {
   const d = new Date()
   d.setHours(12, 0, 0, 0)
   const dow = d.getDay()
-  d.setDate(d.getDate() + (dow === 0 ? 1 : 8 - dow))
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow))
   return d
 }
 
@@ -410,7 +410,7 @@ function ProposalStep({ onYes }: { onYes: () => void }) {
             className="text-[2.6rem] leading-[1.15] font-extrabold mb-10"
             style={{ fontFamily: 'var(--font-nunito), system-ui, sans-serif', color: '#3B1A08', letterSpacing: '-0.01em' }}
           >
-            Ana, prossima settimana usciamo.
+            Ana, questa o la prossima settimana usciamo.
           </h1>
 
           <div className="flex items-center justify-center gap-4 min-h-[60px]">
@@ -513,9 +513,18 @@ const TIME_SLOTS = [
 function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
   const [selDates, setSelDates] = useState<string[]>([])
 
-  const monday = useMemo(() => getNextMonday(), [])
-  const days = useMemo(() => buildWeekDays(monday), [monday])
-  const weekLabel = useMemo(() => weekRangeLabel(monday), [monday])
+  const baseMonday = useMemo(() => getCurrentMonday(), [])
+  const weeks = useMemo(
+    () => WEEK_SECTION_OFFSETS.map((offset) => {
+      const monday = addWeeks(baseMonday, offset)
+      return {
+        key: monday.toISOString().slice(0, 10),
+        label: weekRangeLabel(monday),
+        days: buildWeekDays(monday),
+      }
+    }),
+    [baseMonday]
+  )
 
   const ready = selDates.length > 0
   const toggle = (key: string) => { vibrate(TAP); setSelDates(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]) }
@@ -540,32 +549,36 @@ function WhenStep({ onNext }: { onNext: (dates: string[]) => void }) {
           </h2>
         </div>
 
-        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9CA3AF' }}>
-          {weekLabel}
-        </p>
-        <div className="grid grid-cols-7 gap-1.5 mb-3">
-          {days.map((d) => (
-            <button
-              key={d.key}
-              onClick={() => toggle(d.key)}
-              className="relative flex flex-col items-center py-2 rounded-xl text-[10px] leading-tight transition-all duration-150"
-              style={
-                selDates.includes(d.key)
-                  ? { background: '#F5C842', color: '#fff', fontWeight: 700, transform: 'scale(1.1)', boxShadow: '0 4px 12px rgba(245,200,66,0.3)' }
-                  : d.special
-                  ? { background: '#FFF3CD', color: '#3B1A08', border: '1.5px solid #F5C842' }
-                  : { background: '#F9F9F9', color: '#4B5563' }
-              }
-            >
-              {d.special && (
-                <span className="absolute -top-1.5 -right-1 text-[10px] leading-none">✨</span>
-              )}
-              <span className="capitalize font-medium">{d.dow}</span>
-              <span className="text-sm font-bold mt-0.5">{d.num}</span>
-              <span className="capitalize opacity-60">{d.mon}</span>
-            </button>
-          ))}
-        </div>
+        {weeks.map((week) => (
+          <div key={week.key} className="mb-3 last:mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: '#9CA3AF' }}>
+              {week.label}
+            </p>
+            <div className="grid grid-cols-7 gap-1.5">
+              {week.days.map((d) => (
+                <button
+                  key={d.key}
+                  onClick={() => toggle(d.key)}
+                  className="relative flex flex-col items-center py-2 rounded-xl text-[10px] leading-tight transition-all duration-150"
+                  style={
+                    selDates.includes(d.key)
+                      ? { background: '#F5C842', color: '#fff', fontWeight: 700, transform: 'scale(1.1)', boxShadow: '0 4px 12px rgba(245,200,66,0.3)' }
+                      : d.special
+                      ? { background: '#FFF3CD', color: '#3B1A08', border: '1.5px solid #F5C842' }
+                      : { background: '#F9F9F9', color: '#4B5563' }
+                  }
+                >
+                  {d.special && (
+                    <span className="absolute -top-1.5 -right-1 text-[10px] leading-none">✨</span>
+                  )}
+                  <span className="capitalize font-medium">{d.dow}</span>
+                  <span className="text-sm font-bold mt-0.5">{d.num}</span>
+                  <span className="capitalize opacity-60">{d.mon}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {/* Event hint — shown when Jun 13 is selected */}
         <AnimatePresence>
