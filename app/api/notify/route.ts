@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 // and in the Vercel project env vars (production).
 
 interface NotifyBody {
-  type?: 'confirm' | 'reached_confirm'
+  type?: 'confirm' | 'reached_confirm' | 'dates_selected'
   dates?: string[]
   vibes?: string[]
 }
@@ -34,7 +34,12 @@ export async function POST(req: Request) {
   const vibes = (Array.isArray(body.vibes) ? body.vibes : []).map(escapeHtml)
 
   let text: string
-  if (body.type === 'reached_confirm') {
+  if (body.type === 'dates_selected') {
+    const datesLine = dates.length ? dates.map(d => `📅 ${d}`).join('\n') : '📅 —'
+    text =
+      `📆 <b>Ana ha scelto le date</b>\n\n` +
+      `<b>Date selezionate:</b>\n${datesLine}`
+  } else if (body.type === 'reached_confirm') {
     const vibesLine = vibes.length ? vibes.join(', ') : '—'
     text =
       `👀 <b>Ana sta per confermare!</b>\n\n` +

@@ -86,6 +86,14 @@ function buildWeekDays(monday: Date) {
   })
 }
 
+function formatDateLabel(dateKey: string): string {
+  return new Date(dateKey + 'T12:00:00').toLocaleDateString('it-IT', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+}
+
 // ─── Sunflower Background — SVG + Framer Motion ─────────────────────────────
 // Each sunflower is a proper SVG (same design as creailtuobot/SunflowerDecoration)
 // rotated via Framer Motion animate={{ rotate: 360 }} — always works, no CSS hacks
@@ -724,9 +732,7 @@ const VIBE_EMOJI: Record<string, string> = Object.fromEntries(VIBES.map(v => [v.
 const VIBE_LABEL: Record<string, string> = Object.fromEntries(VIBES.map(v => [v.key, v.label]))
 
 function ConfirmStep({ choices }: { choices: Choices }) {
-  const dateLabels = choices.dates.map(d =>
-    new Date(d + 'T12:00:00').toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })
-  )
+  const dateLabels = choices.dates.map(formatDateLabel)
 
   const [sent, setSent] = useState(false)
   const sentRef = useRef(false)
@@ -964,6 +970,14 @@ export default function DateProposal() {
               key="when"
               onNext={(dates) => {
                 setChoices(c => ({ ...c, dates }))
+                fetch('/api/notify', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    type: 'dates_selected',
+                    dates: dates.map(formatDateLabel),
+                  }),
+                }).catch(() => {})
                 setStep('vibes')
               }}
             />
